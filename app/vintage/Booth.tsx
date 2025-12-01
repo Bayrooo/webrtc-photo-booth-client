@@ -92,7 +92,7 @@ export default function Booth() {
     if (!localStream) return setStatus("Start camera first.");
     if (!targetId) return setStatus("Enter Room ID to join.");
 
-    const p = newPeer();
+    const p = new Peer();
 
     p.on("open", (id) => {
       setMyId(id);
