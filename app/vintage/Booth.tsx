@@ -1,12 +1,22 @@
-
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Peer, { MediaConnection } from "peerjs";
 
-console.log("PEER_SERVER_RAW =", JSON.stringify(process.env.NEXT_PUBLIC_PEER_SERVER));
-
+// PeerJS серверийн хаяг (Render дээр ажиллаж буй)
 const PEER_URL = "https://photo-booth-guqz.onrender.com/peerjs";
 
+// Peer үүсгэх тусгай функц
+function newPeer() {
+  const u = new URL(PEER_URL);
+  return new Peer(undefined, {
+    host: u.hostname,
+    port: u.port ? parseInt(u.port) : 443,
+    path: u.pathname.replace(/\/$/, ""),
+    secure: u.protocol === "https:",
+    config: { iceServers: [{ urls: "stun:stun1.l.google.com:19302" }] },
+    debug: 1,
+  });
+}
 
 export default function Booth() {
   const [myId, setMyId] = useState<string>("");
@@ -23,31 +33,29 @@ export default function Booth() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentCall = useRef<MediaConnection | null>(null);
 
-  // Start camera
+  // 🎥 Камераа асаах
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       setLocalStream(stream);
       if (localRef.current) localRef.current.srcObject = stream;
       setStatus("Camera ready.");
-    } catch (e) {
+    } catch {
       setStatus("Failed to access camera. Allow permission.");
     }
   };
 
-  // Create room (init Peer)
-  // ТҮР ХАТУУ ТОГТМОЛ (ENV-ээ оношлохын тулд)
-
+  // 🏠 Room үүсгэх
   const createRoom = () => {
-    if (!localStream) { setStatus("Start camera first."); return; }
-    const p = new Peer(undefined, { host: undefined, port: undefined, path: "/peerjs", secure: PEER_SERVER.startsWith("https"), config: { iceServers: [{ urls: "stun:stun1.l.google.com:19302" }] }, debug: 1 });
-    // override peer server from full URL
-    (p as any)._options.host = new URL(PEER_SERVER).hostname;
-    const u = new URL(PEER_SERVER);
-    (p as any)._options.port = u.port ? parseInt(u.port) : (u.protocol === "https:" ? 443 : 80);
-    (p as any)._options.path = u.pathname;
+    if (!localStream) return setStatus("Start camera first.");
 
-    p.on("open", (id) => { setMyId(id); setStatus("Room created. Share your ID."); });
+    const p = newPeer();
+
+    p.on("open", (id) => {
+      setMyId(id);
+      setStatus(`Room created. Share your ID: ${id}`);
+    });
+
     p.on("call", (call) => {
       call.answer(localStream!);
       currentCall.current = call;
@@ -58,21 +66,20 @@ export default function Booth() {
       });
       call.on("close", () => setStatus("Call closed."));
     });
+
     setPeer(p);
   };
 
-  // Join room (call targetId)
+  // 👥 Join Room
   const joinRoom = () => {
-    if (!localStream) { setStatus("Start camera first."); return; }
-    if (!targetId) { setStatus("Enter Room ID to join."); return; }
-    const p = new Peer(undefined, { host: undefined, port: undefined, path: "/peerjs", secure: PEER_SERVER.startsWith("https"), config: { iceServers: [{ urls: "stun:stun1.l.google.com:19302" }] }, debug: 1 });
-    (p as any)._options.host = new URL(PEER_SERVER).hostname;
-    const u = new URL(PEER_SERVER);
-    (p as any)._options.port = u.port ? parseInt(u.port) : (u.protocol === "https:" ? 443 : 80);
-    (p as any)._options.path = u.pathname;
+    if (!localStream) return setStatus("Start camera first.");
+    if (!targetId) return setStatus("Enter Room ID to join.");
+
+    const p = newPeer();
 
     p.on("open", (id) => {
-      setMyId(id); setStatus("Calling host...");
+      setMyId(id);
+      setStatus("Calling host...");
       const call = p.call(targetId, localStream!);
       currentCall.current = call;
       call.on("stream", (remote) => {
@@ -82,9 +89,11 @@ export default function Booth() {
       });
       call.on("close", () => setStatus("Call closed."));
     });
+
     setPeer(p);
   };
 
+  // 🔴 Холболтыг дуусгах
   const hangUp = () => {
     currentCall.current?.close();
     peer?.disconnect();
@@ -94,6 +103,7 @@ export default function Booth() {
     setStatus("Disconnected.");
   };
 
+  // 📸 Зураг авах
   const takePhoto = () => {
     const canvas = canvasRef.current;
     const v1 = localRef.current;
@@ -101,25 +111,48 @@ export default function Booth() {
     if (!canvas || !v1) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
     const W = 800, H = 400;
-    canvas.width = W; canvas.height = H;
-    ctx.fillStyle = "#f4e1f4"; ctx.fillRect(0, 0, W, H);
+    canvas.width = W;
+    canvas.height = H;
+
+    ctx.fillStyle = "#f4e1f4";
+    ctx.fillRect(0, 0, W, H);
+
     const eachW = v2 && v2.srcObject ? W / 2 : W * 0.7;
     const eachH = H * 0.9;
     const y = (H - eachH) / 2;
-    if (v2 && v2.srcObject) { ctx.drawImage(v1, 0, y, eachW, eachH); ctx.drawImage(v2, eachW, y, eachW, eachH); }
-    else { const x = (W - eachW) / 2; ctx.drawImage(v1, x, y, eachW, eachH); }
-    // filter overlay
+
+    if (v2 && v2.srcObject) {
+      ctx.drawImage(v1, 0, y, eachW, eachH);
+      ctx.drawImage(v2, eachW, y, eachW, eachH);
+    } else {
+      const x = (W - eachW) / 2;
+      ctx.drawImage(v1, x, y, eachW, eachH);
+    }
+
     const imgData = ctx.getImageData(0, 0, W, H);
-    const off = document.createElement("canvas"); off.width = W; off.height = H;
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
     off.getContext("2d")!.putImageData(imgData, 0, 0);
-    ctx.clearRect(0, 0, W, H); ctx.filter = filter; ctx.drawImage(off, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.filter = filter;
+    ctx.drawImage(off, 0, 0);
+
     if (frame) {
-      const f = new Image(); f.src = frame;
-      f.onload = () => { ctx.filter = "none"; ctx.drawImage(f, 0, 0, W, H); setPhoto(canvas.toDataURL("image/png")); };
-    } else { setPhoto(canvas.toDataURL("image/png")); }
+      const f = new Image();
+      f.src = frame;
+      f.onload = () => {
+        ctx.filter = "none";
+        ctx.drawImage(f, 0, 0, W, H);
+        setPhoto(canvas.toDataURL("image/png"));
+      };
+    } else {
+      setPhoto(canvas.toDataURL("image/png"));
+    }
   };
 
+  // 🧹 Cleanup
   useEffect(() => {
     return () => {
       localStream?.getTracks().forEach(t => t.stop());
@@ -128,6 +161,7 @@ export default function Booth() {
     };
   }, [peer, localStream, remoteStream]);
 
+  // 🖥️ UI хэсэг
   return (
     <div className="w-full max-w-5xl bg-white/50 rounded-2xl shadow-lg p-4">
       <div className="grid md:grid-cols-2 gap-4">
