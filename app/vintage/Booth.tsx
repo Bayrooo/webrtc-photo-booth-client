@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Peer, { MediaConnection } from "peerjs";
 
-const PEER_SERVER = process.env.NEXT_PUBLIC_PEER_SERVER || "http://localhost:9000/peerjs";
+console.log("PEER_SERVER_RAW =", JSON.stringify(process.env.NEXT_PUBLIC_PEER_SERVER));
+
+const PEER_URL = "https://photo-booth-guqz.onrender.com/peerjs";
+
 
 export default function Booth() {
   const [myId, setMyId] = useState<string>("");
@@ -33,6 +36,8 @@ export default function Booth() {
   };
 
   // Create room (init Peer)
+  // ТҮР ХАТУУ ТОГТМОЛ (ENV-ээ оношлохын тулд)
+
   const createRoom = () => {
     if (!localStream) { setStatus("Start camera first."); return; }
     const p = new Peer(undefined, { host: undefined, port: undefined, path: "/peerjs", secure: PEER_SERVER.startsWith("https"), config: { iceServers: [{ urls: "stun:stun1.l.google.com:19302" }] }, debug: 1 });
@@ -66,7 +71,8 @@ export default function Booth() {
     (p as any)._options.port = u.port ? parseInt(u.port) : (u.protocol === "https:" ? 443 : 80);
     (p as any)._options.path = u.pathname;
 
-    p.on("open", (id) => { setMyId(id); setStatus("Calling host..."); 
+    p.on("open", (id) => {
+      setMyId(id); setStatus("Calling host...");
       const call = p.call(targetId, localStream!);
       currentCall.current = call;
       call.on("stream", (remote) => {
@@ -97,27 +103,27 @@ export default function Booth() {
     if (!ctx) return;
     const W = 800, H = 400;
     canvas.width = W; canvas.height = H;
-    ctx.fillStyle = "#f4e1f4"; ctx.fillRect(0,0,W,H);
-    const eachW = v2 && v2.srcObject ? W/2 : W*0.7;
-    const eachH = H*0.9;
-    const y = (H-eachH)/2;
+    ctx.fillStyle = "#f4e1f4"; ctx.fillRect(0, 0, W, H);
+    const eachW = v2 && v2.srcObject ? W / 2 : W * 0.7;
+    const eachH = H * 0.9;
+    const y = (H - eachH) / 2;
     if (v2 && v2.srcObject) { ctx.drawImage(v1, 0, y, eachW, eachH); ctx.drawImage(v2, eachW, y, eachW, eachH); }
-    else { const x = (W-eachW)/2; ctx.drawImage(v1, x, y, eachW, eachH); }
+    else { const x = (W - eachW) / 2; ctx.drawImage(v1, x, y, eachW, eachH); }
     // filter overlay
-    const imgData = ctx.getImageData(0,0,W,H);
-    const off = document.createElement("canvas"); off.width=W; off.height=H;
-    off.getContext("2d")!.putImageData(imgData,0,0);
-    ctx.clearRect(0,0,W,H); ctx.filter = filter; ctx.drawImage(off,0,0);
+    const imgData = ctx.getImageData(0, 0, W, H);
+    const off = document.createElement("canvas"); off.width = W; off.height = H;
+    off.getContext("2d")!.putImageData(imgData, 0, 0);
+    ctx.clearRect(0, 0, W, H); ctx.filter = filter; ctx.drawImage(off, 0, 0);
     if (frame) {
       const f = new Image(); f.src = frame;
-      f.onload = () => { ctx.filter="none"; ctx.drawImage(f,0,0,W,H); setPhoto(canvas.toDataURL("image/png")); };
+      f.onload = () => { ctx.filter = "none"; ctx.drawImage(f, 0, 0, W, H); setPhoto(canvas.toDataURL("image/png")); };
     } else { setPhoto(canvas.toDataURL("image/png")); }
   };
 
   useEffect(() => {
     return () => {
-      localStream?.getTracks().forEach(t=>t.stop());
-      remoteStream?.getTracks().forEach(t=>t.stop());
+      localStream?.getTracks().forEach(t => t.stop());
+      remoteStream?.getTracks().forEach(t => t.stop());
       peer?.destroy();
     };
   }, [peer, localStream, remoteStream]);
@@ -134,19 +140,19 @@ export default function Booth() {
       <div className="flex flex-wrap items-center gap-2 mt-4">
         <button onClick={startCamera} className="px-4 py-2 rounded-2xl bg-gray-800 text-white">Start Camera</button>
         <button onClick={createRoom} className="px-4 py-2 rounded-2xl bg-pink-500 text-white">Create Room</button>
-        <input value={targetId} onChange={(e)=>setTargetId(e.target.value)} placeholder="Enter Room ID" className="px-3 py-2 rounded-xl bg-white/80 border" />
+        <input value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="Enter Room ID" className="px-3 py-2 rounded-xl bg-white/80 border" />
         <button onClick={joinRoom} className="px-4 py-2 rounded-2xl bg-purple-600 text-white">Join Room</button>
         <button onClick={hangUp} className="px-4 py-2 rounded-2xl bg-red-500 text-white">Hang Up</button>
         <button onClick={takePhoto} className="ml-auto px-4 py-2 rounded-2xl bg-pink-400 text-white">📸 Take Photo</button>
       </div>
 
       <div className="flex gap-2 mt-3">
-        <button onClick={()=>setFilter("grayscale(1)")} className="px-3 py-2 rounded-xl bg-gray-200">Gray</button>
-        <button onClick={()=>setFilter("sepia(1)")} className="px-3 py-2 rounded-xl bg-gray-200">Sepia</button>
-        <button onClick={()=>setFilter("none")} className="px-3 py-2 rounded-xl bg-gray-200">Normal</button>
-        <button onClick={()=>setFrame("/frames/frame1.png")} className="px-3 py-2 rounded-xl bg-gray-200">Frame 1</button>
-        <button onClick={()=>setFrame("/frames/frame2.png")} className="px-3 py-2 rounded-xl bg-gray-200">Frame 2</button>
-        <button onClick={()=>setFrame(null)} className="px-3 py-2 rounded-xl bg-gray-200">No Frame</button>
+        <button onClick={() => setFilter("grayscale(1)")} className="px-3 py-2 rounded-xl bg-gray-200">Gray</button>
+        <button onClick={() => setFilter("sepia(1)")} className="px-3 py-2 rounded-xl bg-gray-200">Sepia</button>
+        <button onClick={() => setFilter("none")} className="px-3 py-2 rounded-xl bg-gray-200">Normal</button>
+        <button onClick={() => setFrame("/frames/frame1.png")} className="px-3 py-2 rounded-xl bg-gray-200">Frame 1</button>
+        <button onClick={() => setFrame("/frames/frame2.png")} className="px-3 py-2 rounded-xl bg-gray-200">Frame 2</button>
+        <button onClick={() => setFrame(null)} className="px-3 py-2 rounded-xl bg-gray-200">No Frame</button>
       </div>
 
       <div className="mt-2 text-sm text-gray-700">
