@@ -4,19 +4,36 @@ import Peer, { MediaConnection } from "peerjs";
 
 // PeerJS серверийн хаяг (Render дээр ажиллаж буй)
 const PEER_URL = "https://photo-booth-guqz.onrender.com/peerjs";
+// ... дотор чинь байгаа new Peer({...}) объектын config-г солих
+const p = new Peer(undefined, {
+  host: new URL(PEER_URL).hostname,
+  port: new URL(PEER_URL).port ? parseInt(new URL(PEER_URL).port) : 443,
+  path: "/",                      // ← server.js-тэй таарч байгаа
+  secure: true,                   // Render HTTPS
+  config: {
+    iceTransportPolicy: "all",
+    iceServers: [
+      // STUN-ууд
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
 
-// Peer үүсгэх тусгай функц
-function newPeer() {
-  const u = new URL(PEER_URL);
-  return new Peer(undefined, {
-    host: u.hostname,
-    port: u.port ? parseInt(u.port) : 443,
-    path: u.pathname.replace(/\/$/, ""),
-    secure: u.protocol === "https:",
-    config: { iceServers: [{ urls: "stun:stun1.l.google.com:19302" }] },
-    debug: 1,
-  });
-}
+      // ✅ TURN (Expressturn жишээ) - ЭНД ӨӨРИЙНХӨӨ credentials-ийг тавина
+      {
+        urls: "turn:relay1.expressturn.com:3478",
+        username: "YOUR_TURN_USERNAME",
+        credential: "YOUR_TURN_PASSWORD",
+      },
+      // Хэрвээ өгсөн бол TLS хувилбар
+      // {
+      //   urls: "turns:relay1.expressturn.com:5349",
+      //   username: "YOUR_TURN_USERNAME",
+      //   credential: "YOUR_TURN_PASSWORD",
+      // },
+    ],
+  },
+  debug: 2,
+});
+
 
 export default function Booth() {
   const [myId, setMyId] = useState<string>("");
