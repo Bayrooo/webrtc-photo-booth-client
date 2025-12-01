@@ -19,9 +19,9 @@ const p = new Peer(undefined, {
 
       // ✅ TURN (Expressturn жишээ) - ЭНД ӨӨРИЙНХӨӨ credentials-ийг тавина
       {
-        urls: "turn:relay1.expressturn.com:3478",
-        username: "YOUR_TURN_USERNAME",
-        credential: "YOUR_TURN_PASSWORD",
+        urls: "relay1.expressturn.com:3480",
+        username: "000000002079961990",
+        credential: "zKrE/OR2O6p5Yfv1559hcvK5FZE=",
       },
       // Хэрвээ өгсөн бол TLS хувилбар
       // {
